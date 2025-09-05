@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Reachly Lead Generation Service
 
 ContactOut API integration service for Reachly's lead generation capabilities.
@@ -200,3 +201,6 @@ MIT License - See main Reachly license for details.
 
 **Status**: ✅ Day 1 Complete - Ready for Day 2!  
 **Next**: Database schema design and API controller implementation
+=======
+# lead-generation-service
+>>>>>>> 86e71ab57be083d5622c48bca4f7b668515df081
