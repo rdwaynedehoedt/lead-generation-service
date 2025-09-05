@@ -30,8 +30,20 @@ export class ContactOutService {
       throw new Error('CONTACTOUT_API_KEY environment variable is required');
     }
 
-    // Initialize Redis
-    this.redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379');
+    // Initialize Redis (optional for development)
+    try {
+      this.redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379', {
+        maxRetriesPerRequest: 1,
+        lazyConnect: true
+      });
+      
+      this.redis.on('error', (err) => {
+        logger.warn('Redis connection failed - rate limiting will be disabled', { error: err.message });
+      });
+    } catch (error) {
+      logger.warn('Redis not available - rate limiting disabled', { error });
+      this.redis = null as any;
+    }
     
     // Rate limiting configuration
     this.rateLimitConfig = {
@@ -66,29 +78,38 @@ export class ContactOutService {
   }
 
   private setupRateLimiters(): void {
-    // People Search rate limiter (60 requests per minute)
-    this.rateLimiters.set('people_search', new RateLimiterRedis({
-      storeClient: this.redis,
-      keyPrefix: 'contactout_rate_limit_search',
-      points: this.rateLimitConfig.people_search,
-      duration: 60, // Per 60 seconds
-    }));
+    if (!this.redis) {
+      logger.warn('Redis not available - skipping rate limiter setup');
+      return;
+    }
 
-    // Contact Checker rate limiter (150 requests per minute)
-    this.rateLimiters.set('contact_checker', new RateLimiterRedis({
-      storeClient: this.redis,
-      keyPrefix: 'contactout_rate_limit_checker',
-      points: this.rateLimitConfig.contact_checker,
-      duration: 60,
-    }));
+    try {
+      // People Search rate limiter (60 requests per minute)
+      this.rateLimiters.set('people_search', new RateLimiterRedis({
+        storeClient: this.redis,
+        keyPrefix: 'contactout_rate_limit_search',
+        points: this.rateLimitConfig.people_search,
+        duration: 60, // Per 60 seconds
+      }));
 
-    // Other APIs rate limiter (1000 requests per minute)
-    this.rateLimiters.set('other', new RateLimiterRedis({
-      storeClient: this.redis,
-      keyPrefix: 'contactout_rate_limit_other',
-      points: this.rateLimitConfig.other,
-      duration: 60,
-    }));
+      // Contact Checker rate limiter (150 requests per minute)
+      this.rateLimiters.set('contact_checker', new RateLimiterRedis({
+        storeClient: this.redis,
+        keyPrefix: 'contactout_rate_limit_checker',
+        points: this.rateLimitConfig.contact_checker,
+        duration: 60,
+      }));
+
+      // Other APIs rate limiter (1000 requests per minute)
+      this.rateLimiters.set('other', new RateLimiterRedis({
+        storeClient: this.redis,
+        keyPrefix: 'contactout_rate_limit_other',
+        points: this.rateLimitConfig.other,
+        duration: 60,
+      }));
+    } catch (error) {
+      logger.warn('Failed to setup rate limiters', { error });
+    }
   }
 
   private setupInterceptors(): void {
@@ -174,6 +195,10 @@ export class ContactOutService {
   }
 
   private async getCachedResult<T>(cacheKey: string): Promise<T | null> {
+    if (!this.redis) {
+      return null; // No caching when Redis is not available
+    }
+    
     try {
       const cached = await this.redis.get(cacheKey);
       return cached ? JSON.parse(cached) : null;
@@ -184,6 +209,10 @@ export class ContactOutService {
   }
 
   private async setCachedResult<T>(cacheKey: string, data: T, ttl: number): Promise<void> {
+    if (!this.redis) {
+      return; // No caching when Redis is not available
+    }
+    
     try {
       await this.redis.setex(cacheKey, ttl, JSON.stringify(data));
     } catch (error) {
