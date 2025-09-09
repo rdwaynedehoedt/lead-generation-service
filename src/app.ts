@@ -18,8 +18,7 @@ import companyEmployeesRoutes from './routes/company-employees';
 import debugCompanyRoutes from './routes/debug-company';
 import advancedPeopleSearchRoutes from './routes/advanced-people-search';
 
-// Import middleware
-import { sanitizeRequest, validateRateLimit } from './middleware/validation';
+// No validation middleware needed
 
 // Validate required environment variables
 if (!process.env.CONTACTOUT_API_KEY) {
@@ -49,9 +48,7 @@ app.use(express.urlencoded({ extended: true }));
 // Request logging
 app.use(require('morgan')('combined', { stream: morganStream }));
 
-// Apply common middleware
-app.use(sanitizeRequest);
-app.use(validateRateLimit);
+// No validation middleware needed
 
 // API Routes
 app.use('/api/search', searchRoutes);

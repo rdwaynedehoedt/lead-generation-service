@@ -1,7 +1,6 @@
 import express from 'express';
 import { logger } from '../utils/logger';
 import contactOutService from '../services/contactOutService';
-import { validateSearchParams } from '../middleware/validation';
 
 const router = express.Router();
 
@@ -9,7 +8,7 @@ const router = express.Router();
  * POST /api/search/prospects
  * Advanced prospect search using ContactOut API with comprehensive filters
  */
-router.post('/prospects', validateSearchParams, async (req, res) => {
+router.post('/prospects', async (req, res) => {
   try {
     const organizationId = req.headers['x-organization-id'] as string || 'default-org';
 
@@ -165,9 +164,9 @@ router.get('/stats', async (req, res) => {
       timestamp: new Date().toISOString(),
       data: {
         organization_id: organizationId,
-        credits: stats.credits || {},
-        usage_today: stats.usage_today || {},
-        quota_limits: stats.quota_limits || {}
+        remaining: stats.usage?.remaining || {},
+        count: stats.usage?.count || 0,
+        quota: stats.usage?.quota || 0
       }
     });
 

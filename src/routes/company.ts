@@ -1,7 +1,6 @@
 import express from 'express';
 import { logger } from '../utils/logger';
 import contactOutService from '../services/contactOutService';
-import { validateCompanyDomain } from '../middleware/validation';
 
 const router = express.Router();
 
@@ -9,7 +8,7 @@ const router = express.Router();
  * GET /api/company/:domain - Get company information (FREE - no credits used)
  * This endpoint provides comprehensive company data without consuming ContactOut credits
  */
-router.get('/:domain', validateCompanyDomain, async (req, res, next) => {
+router.get('/:domain', async (req, res) => {
   try {
     const domain = req.params.domain;
     const organizationId = req.headers['x-organization-id'] as string || 'default-org';
@@ -22,7 +21,7 @@ router.get('/:domain', validateCompanyDomain, async (req, res, next) => {
     // Get company information (FREE from ContactOut)
     const companyInfo = await contactOutService.getCompanyInfo(domain, organizationId);
 
-    res.json({
+    return res.json({
       success: true,
       timestamp: new Date().toISOString(),
       data: {
@@ -40,7 +39,10 @@ router.get('/:domain', validateCompanyDomain, async (req, res, next) => {
       organizationId: req.headers['x-organization-id']
     });
 
-    next(error);
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 });
 
@@ -48,7 +50,7 @@ router.get('/:domain', validateCompanyDomain, async (req, res, next) => {
  * GET /api/company/:domain/decision-makers - Get decision makers for a company
  * This endpoint finds key contacts at the specified company
  */
-router.get('/:domain/decision-makers', validateCompanyDomain, async (req, res, next) => {
+router.get('/:domain/decision-makers', async (req, res) => {
   try {
     const domain = req.params.domain;
     const organizationId = req.headers['x-organization-id'] as string || 'default-org';
@@ -66,7 +68,7 @@ router.get('/:domain/decision-makers', validateCompanyDomain, async (req, res, n
       reveal_info: revealInfo
     }, organizationId);
 
-    res.json({
+    return res.json({
       success: true,
       timestamp: new Date().toISOString(),
       data: {
@@ -85,7 +87,10 @@ router.get('/:domain/decision-makers', validateCompanyDomain, async (req, res, n
       organizationId: req.headers['x-organization-id']
     });
 
-    next(error);
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 });
 
@@ -93,7 +98,7 @@ router.get('/:domain/decision-makers', validateCompanyDomain, async (req, res, n
  * POST /api/company/enrich-prospect - Enrich individual prospect
  * This endpoint enhances a single prospect with additional ContactOut data
  */
-router.post('/enrich-prospect', async (req, res, next) => {
+router.post('/enrich-prospect', async (req, res) => {
   try {
     const { linkedin_url, prospect_id, enrich_types } = req.body;
     const organizationId = req.headers['x-organization-id'] as string || 'default-org';
@@ -122,7 +127,7 @@ router.post('/enrich-prospect', async (req, res, next) => {
       organization_id: organizationId
     });
 
-    res.json({
+    return res.json({
       success: true,
       timestamp: new Date().toISOString(),
       data: {
@@ -144,7 +149,10 @@ router.post('/enrich-prospect', async (req, res, next) => {
       body: req.body
     });
 
-    next(error);
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 });
 
@@ -152,7 +160,7 @@ router.post('/enrich-prospect', async (req, res, next) => {
  * POST /api/company/bulk-enrich - Bulk enrich multiple prospects
  * This endpoint processes multiple prospects for enrichment efficiently
  */
-router.post('/bulk-enrich', async (req, res, next) => {
+router.post('/bulk-enrich', async (req, res) => {
   try {
     const { prospect_ids, linkedin_urls, enrich_types } = req.body;
     const organizationId = req.headers['x-organization-id'] as string || 'default-org';
@@ -189,7 +197,7 @@ router.post('/bulk-enrich', async (req, res, next) => {
       organization_id: organizationId
     });
 
-    res.json({
+    return res.json({
       success: true,
       timestamp: new Date().toISOString(),
       data: {
@@ -209,21 +217,24 @@ router.post('/bulk-enrich', async (req, res, next) => {
       body: req.body
     });
 
-    next(error);
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 });
 
 /**
  * GET /api/company/bulk-job/:jobId - Check bulk enrichment job status
  */
-router.get('/bulk-job/:jobId', async (req, res, next) => {
+router.get('/bulk-job/:jobId', async (req, res) => {
   try {
     const jobId = req.params.jobId;
     const organizationId = req.headers['x-organization-id'] as string || 'default-org';
 
     const jobStatus = await contactOutService.getBulkEnrichmentStatus(jobId, organizationId);
 
-    res.json({
+    return res.json({
       success: true,
       timestamp: new Date().toISOString(),
       data: jobStatus
@@ -236,7 +247,10 @@ router.get('/bulk-job/:jobId', async (req, res, next) => {
       organizationId: req.headers['x-organization-id']
     });
 
-    next(error);
+    return res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 });
 

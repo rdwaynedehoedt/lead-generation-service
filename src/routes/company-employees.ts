@@ -1,10 +1,8 @@
 import express from 'express';
 import axios from 'axios';
 import logger from '../utils/logger';
-import { getQualityVerificationService } from '../services/qualityVerificationService';
 
 const router = express.Router();
-const qualityService = getQualityVerificationService();
 
 /**
  * Get company employees by company name (NO CREDITS USED)
@@ -12,160 +10,111 @@ const qualityService = getQualityVerificationService();
  */
 router.get('/', async (req, res) => {
   try {
-    const { company } = req.query;
+    const company = req.query.company as string;
     
-    // Validation
-    if (!company || typeof company !== 'string') {
+    if (!company) {
       return res.status(400).json({
         success: false,
-        error: 'Company name is required'
+        error: 'Company parameter is required',
+        example: '/api/company-employees?company=Microsoft'
       });
     }
 
-    logger.info('Fetching company employees with QUALITY VERIFICATION', { company });
+    logger.info('Company employees search', { company });
 
-    // Step 1: Get basic profiles (NO CREDITS USED!)
-    const response = await axios.get('https://api.contactout.com/v1/people/decision-makers', {
-      params: {
-        name: company,
-        reveal_info: false  // NO CREDITS USED!
-      },
+    // Call ContactOut Decision Makers API (FREE)
+    const apiKey = process.env.CONTACTOUT_API_KEY;
+    if (!apiKey) {
+      throw new Error('CONTACTOUT_API_KEY not configured');
+    }
+
+    const baseUrl = process.env.CONTACTOUT_BASE_URL || 'https://api.contactout.com';
+    
+    const response = await axios.get(`${baseUrl}/v1/people/decision-makers`, {
+      params: { name: company, reveal_info: false },
       headers: {
         'authorization': 'basic',
-        'token': process.env.CONTACTOUT_API_KEY || (() => {
-          throw new Error('CONTACTOUT_API_KEY environment variable is required');
-        })()
+        'token': apiKey
       }
     });
 
-    const profiles = response.data.profiles || {};
-    const totalResults = response.data.metadata?.total_results || 0;
-    
-    // Convert to array format for processing
+    const result = response.data;
+    const profiles = result.profiles || {};
+    const totalResults = result.metadata?.total_results || 0;
+
+    // Convert profiles to array
     const profilesArray = Object.entries(profiles).map(([url, profile]: [string, any]) => ({
       ...profile,
       linkedin_url: url
     }));
 
-    logger.info('Basic profiles retrieved', { 
-      company, 
+    logger.info('Company employees retrieved', {
+      company,
       totalResults,
       profilesReturned: profilesArray.length,
       creditsUsed: 0
     });
 
-    // Step 2: Quality verification using FREE contact checkers
-    const verifiedProfiles = await qualityService.verifyProfiles(profilesArray);
-    
-    // Step 3: Format response with quality indicators
-    const formattedEmployees = verifiedProfiles.map((verified) => {
-      const profile = verified.profile;
-      const quality = verified.quality;
-      const contactAvailability = verified.contact_availability;
-
+    // Format response without quality verification for speed
+    const formattedEmployees = profilesArray.map((profile) => {
       return {
         name: profile.full_name,
         job_title: profile.title,
         headline: profile.headline,
         linkedin_url: profile.linkedin_url,
         location: profile.location,
-        company: {
-          name: profile.company?.name,
-          domain: profile.company?.domain,
-          size: profile.company?.size,
-          industry: profile.company?.industry,
-          revenue: profile.company?.revenue
-        },
-        
-        // Enhanced contact availability (from FREE checkers)
-        contact_availability: {
-          personal_email: contactAvailability.personal_email,
-          work_email: contactAvailability.work_email,
-          work_email_verified: contactAvailability.work_email_status === 'Verified',
-          phone: contactAvailability.phone
-        },
-        
-        // Quality score and indicators
-        quality_score: {
-          overall_score: quality.overall_score,
-          confidence_level: quality.confidence_level,
-          completeness: quality.profile_completeness,
-          contact_score: quality.contact_availability,
-          company_verification: quality.company_verification,
-          freshness: quality.freshness_indicators,
-          flags: quality.flags,
-          cost_recommended: quality.cost_recommended
-        },
-        
-        profile_picture: profile.profile_picture_url,
-        
-        // Add verification timestamp
-        verified_at: new Date().toISOString()
+        company: profile.company,
+        created_at: new Date().toISOString()
       };
     });
 
-    // Calculate quality distribution for analytics
-    const qualityStats = {
-      high_quality: formattedEmployees.filter(e => e.quality_score.confidence_level === 'high').length,
-      medium_quality: formattedEmployees.filter(e => e.quality_score.confidence_level === 'medium').length,
-      low_quality: formattedEmployees.filter(e => e.quality_score.confidence_level === 'low').length,
-      cost_recommended: formattedEmployees.filter(e => e.quality_score.cost_recommended).length,
-      verified_emails: formattedEmployees.filter(e => e.contact_availability.work_email_verified).length
+    // No quality statistics - just basic metrics
+    const basicStats = {
+      total_employees: formattedEmployees.length,
+      with_titles: formattedEmployees.filter((e: any) => e.job_title).length,
+      with_locations: formattedEmployees.filter((e: any) => e.location).length
     };
 
-    logger.info('Quality verification completed', { 
-      company,
-      ...qualityStats,
-      creditsUsed: 0,
-      estimatedSavings: `${qualityStats.low_quality * 2} credits saved by not revealing low-quality contacts`
-    });
-
-    return res.json({
+    const responseData = {
       success: true,
       data: {
         company_name: company,
-        total_employees_found: totalResults,
+        total_results: totalResults,
         employees_returned: formattedEmployees.length,
-        employees: formattedEmployees,
-        
-        // Quality analytics
-        quality_distribution: qualityStats,
-        
-        // Cost information
-        credits_used: 0, // All verification was FREE!
-        estimated_savings: `${qualityStats.low_quality * 2} credits saved`,
-        cost_recommended_count: qualityStats.cost_recommended,
-        
-        // Verification info
-        verification_method: 'FREE contact checkers + quality scoring',
-        verified_at: new Date().toISOString()
+        profiles: formattedEmployees,
+        statistics: basicStats,
+        credits_used: 0,
+        api_endpoint: 'ContactOut Decision Makers API (FREE)',
+        timestamp: new Date().toISOString()
       }
-    });
+    };
+
+    return res.json(responseData);
 
   } catch (error: any) {
     const errorMessage = error.response?.data?.message || error.message;
     
-    logger.error('Company employees search failed', { 
-      company: req.query.company, 
+    logger.error('Company employees search failed', {
+      company: req.query.company,
       error: error.response?.data || error.message,
       statusCode: error.response?.status
     });
 
-    // Handle rate limiting specifically
+    // Handle rate limiting
     if (errorMessage === 'Too Many Attempts.' || error.response?.status === 429) {
       return res.status(429).json({
         success: false,
-        error: 'Rate limit exceeded. Please wait 1-2 minutes before trying again.',
+        error: 'Rate limit exceeded. Decision Makers API allows limited requests per minute.',
         rate_limit_hit: true,
-        retry_after: 120, // seconds
-        credits_used: 0,
-        tip: 'ContactOut allows 60 searches per minute. Try spacing out your requests.'
+        retry_after: 60,
+        tip: 'Try searching for a different company or wait a minute.',
+        credits_used: 0
       });
     }
 
     return res.status(500).json({
       success: false,
-      error: errorMessage || 'Failed to fetch company employees',
+      error: errorMessage || 'Company employees search failed',
       credits_used: 0
     });
   }

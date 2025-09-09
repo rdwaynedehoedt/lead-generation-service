@@ -1,13 +1,11 @@
 import express from 'express';
 import axios from 'axios';
 import logger from '../utils/logger';
-import { getQualityVerificationService } from '../services/qualityVerificationService';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
 const router = express.Router();
-const qualityService = getQualityVerificationService();
 
 /**
  * Advanced People Search with ALL ContactOut filters
@@ -105,44 +103,8 @@ router.post('/', async (req, res) => {
       creditsUsed: 0
     });
 
-    // Apply quality verification if requested
+    // No more quality verification - just return all profiles
     let processedProfiles = profilesArray;
-    let qualityStats = null;
-
-    if (filters.enable_quality_verification && profilesArray.length > 0) {
-      logger.info('Starting quality verification for search results', {
-        profileCount: profilesArray.length
-      });
-
-      const verifiedProfiles = await qualityService.verifyProfiles(profilesArray);
-      
-      // Sort by quality score if requested
-      if (filters.sort_by_quality) {
-        verifiedProfiles.sort((a, b) => b.quality.overall_score - a.quality.overall_score);
-      }
-
-      processedProfiles = verifiedProfiles.map(verified => ({
-        ...verified.profile,
-        quality_score: verified.quality,
-        contact_availability: verified.contact_availability,
-        verified_at: new Date().toISOString()
-      }));
-
-      // Calculate quality distribution
-      qualityStats = {
-        high_quality: verifiedProfiles.filter(v => v.quality.confidence_level === 'high').length,
-        medium_quality: verifiedProfiles.filter(v => v.quality.confidence_level === 'medium').length,
-        low_quality: verifiedProfiles.filter(v => v.quality.confidence_level === 'low').length,
-        cost_recommended: verifiedProfiles.filter(v => v.quality.cost_recommended).length,
-        verified_emails: verifiedProfiles.filter(v => v.contact_availability.work_email_status === 'Verified').length
-      };
-
-      logger.info('Quality verification completed', {
-        ...qualityStats,
-        creditsUsed: 0,
-        estimatedSavings: `${qualityStats.low_quality * 2} credits saved`
-      });
-    }
 
     // Format final response
     const responseData = {
@@ -166,16 +128,6 @@ router.post('/', async (req, res) => {
           keyword: filters.keyword || null
         },
         profiles: processedProfiles,
-        quality_verification: qualityStats ? {
-          enabled: true,
-          distribution: qualityStats,
-          credits_used: 0,
-          estimated_savings: `${qualityStats.low_quality * 2} credits saved`,
-          verification_method: 'FREE ContactOut contact checkers'
-        } : {
-          enabled: false,
-          message: 'Add "enable_quality_verification": true to get quality scores'
-        },
         credits_used: 0,
         api_info: {
           endpoint: 'ContactOut People Search API',

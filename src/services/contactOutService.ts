@@ -22,7 +22,7 @@ export class ContactOutService {
   private rateLimitConfig: RateLimitConfig;
 
   constructor() {
-    this.apiKey = process.env.CONTACTOUT_API_KEY;
+    this.apiKey = process.env.CONTACTOUT_API_KEY || '';
     this.baseUrl = process.env.CONTACTOUT_BASE_URL || 'https://api.contactout.com';
     
     if (!this.apiKey) {

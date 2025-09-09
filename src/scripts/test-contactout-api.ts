@@ -48,7 +48,7 @@ class ContactOutAPITester {
     const results: TestResult[] = [];
 
     console.log('🚀 Starting ContactOut API Tests...');
-    console.log(`📍 API Key: ${API_KEY.substring(0, 8)}...${API_KEY.substring(API_KEY.length - 4)}`);
+    console.log(`📍 API Key: ${API_KEY?.substring(0, 8)}...${API_KEY?.substring(API_KEY.length - 4)}`);
     console.log(`🌐 Base URL: ${BASE_URL}\n`);
 
     // Test 1: API Usage Stats (Basic connectivity)
