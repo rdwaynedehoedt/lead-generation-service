@@ -4,29 +4,47 @@
 export interface ContactOutSearchParams {
   // Basic search parameters
   name?: string;
-  job_title?: string;
-  company?: string;
-  location?: string;
-  industry?: string;
+  job_title?: string | string[];
+  company?: string | string[];
+  location?: string | string[];
+  industry?: string | string[];
   
-  // Advanced filters
-  company_size?: string;
-  revenue?: string;
-  technologies?: string[];
-  keywords?: string[];
-  skills?: string[];
-  education?: string[];
-  
-  // Search options
+  // Advanced job title filters
+  exclude_job_titles?: string[];
   current_titles_only?: boolean;
   include_related_job_titles?: boolean;
+  
+  // Experience and skills
+  skills?: string[];
+  education?: string | string[];
+  years_of_experience?: string | string[];  // e.g., "6_10", "10+"
+  years_in_current_role?: string | string[];  // e.g., "1_3", "5+"
+  
+  // Company filters
+  company_filter?: 'current' | 'previous' | 'both';
+  exclude_companies?: string[];
+  current_company_only?: boolean;
+  domain?: string | string[];
+  company_size?: string | string[];  // e.g., "1_10", "11_50", "51_200", "201_500", "501_1000", "1001_5000", "5001_10000", "10001+"
+  
+  // Advanced search
+  keyword?: string;
+  match_experience?: 'current' | 'previous' | 'both';
+  
+  // Data type preferences
   data_types?: ('personal_email' | 'work_email' | 'phone')[];
   reveal_info?: boolean;
   
-  // Pagination
+  // Pagination and limits
   page?: number;
-  limit?: number;
+  page_size?: number;  // ContactOut uses page_size, not limit
+  limit?: number;      // Keep for backward compatibility
   offset?: number;
+  
+  // Legacy parameters (deprecated but kept for compatibility)
+  revenue?: string;
+  technologies?: string[];
+  keywords?: string[];
 }
 
 export interface ContactOutCompany {

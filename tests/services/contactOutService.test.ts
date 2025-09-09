@@ -17,7 +17,7 @@ describe('ContactOutService', () => {
 
   beforeAll(() => {
     // Set up test environment variables
-    process.env.CONTACTOUT_API_KEY = 'RrND5lE0qPjfjJd8r5tCWALs';
+    process.env.CONTACTOUT_API_KEY = 'test_api_key_123';
     process.env.CONTACTOUT_BASE_URL = 'https://api.contactout.com';
     process.env.REDIS_URL = 'redis://localhost:6379';
   });
@@ -72,7 +72,7 @@ describe('ContactOutService', () => {
         expect.objectContaining({
           baseURL: 'https://api.contactout.com',
           headers: expect.objectContaining({
-            'token': 'RrND5lE0qPjfjJd8r5tCWALs'
+            'token': 'test_api_key_123'
           })
         })
       );

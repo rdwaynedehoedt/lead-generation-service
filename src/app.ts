@@ -1,24 +1,30 @@
+import dotenv from 'dotenv';
+
+// Load environment variables FIRST before any other imports
+dotenv.config();
+
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
-import dotenv from 'dotenv';
 import { logger, morganStream } from './utils/logger';
 import contactOutService from './services/contactOutService';
 
 // Import routes
 import searchRoutes from './routes/search';
 import contactsRoutes from './routes/contacts';
+import companyRoutes from './routes/company';
+import companyEmployeesRoutes from './routes/company-employees';
+import debugCompanyRoutes from './routes/debug-company';
+import advancedPeopleSearchRoutes from './routes/advanced-people-search';
 
 // Import middleware
 import { sanitizeRequest, validateRateLimit } from './middleware/validation';
 
-// Load environment variables
-dotenv.config();
-
-// Set API key if not in environment
+// Validate required environment variables
 if (!process.env.CONTACTOUT_API_KEY) {
-  process.env.CONTACTOUT_API_KEY = 'RrND5lE0qPjfjJd8r5tCWALs';
+  logger.error('❌ CONTACTOUT_API_KEY environment variable is required');
+  process.exit(1);
 }
 
 const app = express();
@@ -50,6 +56,10 @@ app.use(validateRateLimit);
 // API Routes
 app.use('/api/search', searchRoutes);
 app.use('/api/contacts', contactsRoutes);
+app.use('/api/company', companyRoutes);
+app.use('/api/company-employees', companyEmployeesRoutes);
+app.use('/api/debug-company', debugCompanyRoutes);
+app.use('/api/advanced-people-search', advancedPeopleSearchRoutes);
 
 // Health check endpoint
 app.get('/health', async (_req, res) => {

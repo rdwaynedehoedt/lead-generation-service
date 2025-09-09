@@ -6,7 +6,7 @@ dotenv.config({ path: '.env.test' });
 
 // Set essential test environment variables
 process.env.NODE_ENV = 'test';
-process.env.CONTACTOUT_API_KEY = 'RrND5lE0qPjfjJd8r5tCWALs';
+process.env.CONTACTOUT_API_KEY = 'test_api_key_123';
 process.env.CONTACTOUT_BASE_URL = 'https://api.contactout.com';
 process.env.REDIS_URL = 'redis://localhost:6379';
 process.env.LOG_LEVEL = 'error';

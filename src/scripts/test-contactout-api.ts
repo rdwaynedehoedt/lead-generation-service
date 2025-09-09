@@ -15,8 +15,13 @@ import axios from 'axios';
 // Load environment variables
 dotenv.config();
 
-const API_KEY = process.env.CONTACTOUT_API_KEY || 'RrND5lE0qPjfjJd8r5tCWALs';
-const BASE_URL = 'https://api.contactout.com';
+const API_KEY = process.env.CONTACTOUT_API_KEY;
+const BASE_URL = process.env.CONTACTOUT_BASE_URL || 'https://api.contactout.com';
+
+if (!API_KEY) {
+  console.error('❌ CONTACTOUT_API_KEY environment variable is required');
+  process.exit(1);
+}
 
 interface TestResult {
   endpoint: string;
@@ -116,7 +121,7 @@ class ContactOutAPITester {
       
       const searchParams = {
         job_title: ['Software Engineer'],
-        company_size: ['11-50', '51-200'],
+        company_size: ['11_50', '51_200'],
         location: ['San Francisco'],
         page: 1,
         reveal_info: false // Don't use credits for testing

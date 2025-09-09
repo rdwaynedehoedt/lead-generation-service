@@ -9,7 +9,7 @@ This is the foundation implementation for the ContactOut integration following o
 
 ### ✅ Completed Tasks (Day 1)
 
-- [x] **API Setup & Testing**: ContactOut API integration with key `RrND5lE0qPjfjJd8r5tCWALs`
+- [x] **API Setup & Testing**: ContactOut API integration configured via environment variables
 - [x] **Development Environment**: Clean folder structure with TypeScript setup
 - [x] **API Client Wrapper**: Complete ContactOut service with all endpoints
 - [x] **Testing Framework**: Jest setup with comprehensive test suite
@@ -59,7 +59,7 @@ cp env.example .env
 
 Update `.env` with your configuration:
 ```bash
-CONTACTOUT_API_KEY=RrND5lE0qPjfjJd8r5tCWALs
+CONTACTOUT_API_KEY=your_contactout_api_key_here
 REDIS_URL=redis://localhost:6379
 DATABASE_URL=postgresql://user:password@localhost:5432/reachly_dev
 PORT=5001

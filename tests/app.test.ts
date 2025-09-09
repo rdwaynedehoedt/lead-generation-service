@@ -134,7 +134,7 @@ describe('Lead Generation Service App', () => {
     it('should search for prospects', async () => {
       const searchParams = {
         job_title: ['Software Engineer'],
-        company_size: ['11-50'],
+        company_size: ['11_50'],
         location: ['San Francisco'],
         reveal_info: false
       };

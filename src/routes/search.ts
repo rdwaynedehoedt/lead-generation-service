@@ -1,87 +1,147 @@
 import express from 'express';
 import { logger } from '../utils/logger';
 import contactOutService from '../services/contactOutService';
+import { validateSearchParams } from '../middleware/validation';
 
 const router = express.Router();
 
 /**
  * POST /api/search/prospects
- * Search for prospects using ContactOut API
+ * Advanced prospect search using ContactOut API with comprehensive filters
  */
-router.post('/prospects', async (req, res) => {
+router.post('/prospects', validateSearchParams, async (req, res) => {
   try {
-    const { job_title, company, location, reveal_info = false } = req.body;
     const organizationId = req.headers['x-organization-id'] as string || 'default-org';
 
-    // Validate required parameters
-    if (!job_title && !company && !location) {
-      return res.status(400).json({
-        success: false,
-        error: 'At least one search parameter (job_title, company, or location) is required',
-        timestamp: new Date().toISOString()
-      });
-    }
+    // Extract all search parameters from validated request body
+    const searchParams = {
+      // Basic parameters
+      ...(req.body.name && { name: req.body.name }),
+      ...(req.body.job_title && { job_title: req.body.job_title }),
+      ...(req.body.company && { company: req.body.company }),
+      ...(req.body.location && { location: req.body.location }),
+      ...(req.body.industry && { industry: req.body.industry }),
+      
+      // Advanced job filters
+      ...(req.body.exclude_job_titles && { exclude_job_titles: req.body.exclude_job_titles }),
+      ...(req.body.current_titles_only !== undefined && { current_titles_only: req.body.current_titles_only }),
+      ...(req.body.include_related_job_titles !== undefined && { include_related_job_titles: req.body.include_related_job_titles }),
+      
+      // Experience and skills
+      ...(req.body.skills && { skills: req.body.skills }),
+      ...(req.body.education && { education: req.body.education }),
+      ...(req.body.years_of_experience && { years_of_experience: req.body.years_of_experience }),
+      ...(req.body.years_in_current_role && { years_in_current_role: req.body.years_in_current_role }),
+      
+      // Company filters
+      ...(req.body.company_filter && { company_filter: req.body.company_filter }),
+      ...(req.body.exclude_companies && { exclude_companies: req.body.exclude_companies }),
+      ...(req.body.current_company_only !== undefined && { current_company_only: req.body.current_company_only }),
+      ...(req.body.domain && { domain: req.body.domain }),
+      ...(req.body.company_size && { company_size: req.body.company_size }),
+      
+      // Advanced search
+      ...(req.body.keyword && { keyword: req.body.keyword }),
+      ...(req.body.match_experience && { match_experience: req.body.match_experience }),
+      
+      // Data preferences
+      ...(req.body.data_types && { data_types: req.body.data_types }),
+      ...(req.body.reveal_info !== undefined && { reveal_info: req.body.reveal_info }),
+      
+      // Pagination (defaulted to 5 in validation)
+      page: req.body.page || 1,
+      page_size: req.body.page_size || req.body.limit || 5
+    };
 
-    logger.info('Prospect search request', {
+    logger.info('Advanced prospect search request', {
       organizationId,
-      job_title,
-      company,
-      location,
-      reveal_info
+      searchParams: {
+        ...searchParams,
+        // Log non-sensitive summary
+        hasName: !!searchParams.name,
+        hasJobTitle: !!searchParams.job_title,
+        hasCompany: !!searchParams.company,
+        hasLocation: !!searchParams.location,
+        filterCount: Object.keys(searchParams).length
+      }
     });
 
-    // Prepare search parameters for ContactOut
-    const searchParams: any = {};
-    
-    if (job_title) {
-      searchParams.job_title = Array.isArray(job_title) ? job_title : [job_title];
-    }
-    
-    if (company) {
-      searchParams.company = Array.isArray(company) ? company : [company];
-    }
-    
-    if (location) {
-      searchParams.location = Array.isArray(location) ? location : [location];
-    }
-
-    // Add reveal options if requested
-    if (reveal_info) {
-      searchParams.get_all = true; // Get full contact information
-    }
-
-    // Execute search
+    // Execute search with ContactOut
     const results = await contactOutService.searchProspects(searchParams, organizationId);
 
     // Log successful search
-    logger.info('Prospect search completed', {
+    logger.info('Advanced prospect search completed', {
       organizationId,
-      resultsCount: results.data?.length || 0,
-      creditsUsed: results.credits_used
+      totalResults: results.metadata?.total_results || 0,
+      returnedResults: Array.isArray(results.profiles) 
+        ? results.profiles.length 
+        : Object.keys(results.profiles || {}).length,
+      page: results.metadata?.page || 1,
+      pageSize: results.metadata?.page_size || 5
     });
+
+    // Process profiles data based on format
+    let profilesArray: any[] = [];
+    if (results.profiles) {
+      if (Array.isArray(results.profiles)) {
+        profilesArray = results.profiles;
+      } else {
+        // Convert object format to array
+        profilesArray = Object.entries(results.profiles).map(([url, profile]) => ({
+          ...profile,
+          linkedin_url: url
+        }));
+      }
+    }
 
     res.json({
       success: true,
       timestamp: new Date().toISOString(),
       data: {
-        prospects: results.data || [],
-        total_found: results.total || 0,
-        credits_used: results.credits_used || 0,
+        prospects: profilesArray,
+        metadata: {
+          total_results: results.metadata?.total_results || 0,
+          page: results.metadata?.page || 1,
+          page_size: results.metadata?.page_size || 5,
+          total_pages: Math.ceil((results.metadata?.total_results || 0) / (results.metadata?.page_size || 5))
+        },
         search_params: searchParams,
-        reveal_info_included: reveal_info
+        applied_filters: Object.keys(searchParams).filter(key => 
+          !['page', 'page_size'].includes(key) && searchParams[key as keyof typeof searchParams] !== undefined
+        )
       }
     });
 
   } catch (error) {
-    logger.error('Prospect search failed', {
+    logger.error('Advanced prospect search failed', {
       error: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : undefined,
-      body: req.body
+      organizationId: req.headers['x-organization-id'],
+      searchParamCount: Object.keys(req.body).length
     });
 
-    res.status(500).json({
+    // Handle specific ContactOut errors
+    let errorMessage = 'Search failed';
+    let statusCode = 500;
+
+    if (error instanceof Error) {
+      if (error.message.includes('Rate limit exceeded')) {
+        statusCode = 429;
+        errorMessage = 'Search rate limit exceeded. Please try again later.';
+      } else if (error.message.includes('Authentication failed')) {
+        statusCode = 401;
+        errorMessage = 'API authentication failed. Please check configuration.';
+      } else if (error.message.includes('Bad request')) {
+        statusCode = 400;
+        errorMessage = 'Invalid search parameters provided.';
+      } else {
+        errorMessage = error.message;
+      }
+    }
+
+    res.status(statusCode).json({
       success: false,
-      error: error instanceof Error ? error.message : 'Search failed',
+      error: errorMessage,
       timestamp: new Date().toISOString()
     });
   }
