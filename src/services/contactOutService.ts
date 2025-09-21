@@ -1,3 +1,8 @@
+import dotenv from 'dotenv';
+
+// Load environment variables FIRST
+dotenv.config();
+
 import axios, { AxiosInstance, AxiosResponse } from 'axios';
 import Redis from 'ioredis';
 import { RateLimiterRedis } from 'rate-limiter-flexible';
